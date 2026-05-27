@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import supabase from "../../utils/supabaseClient";
+import { createProfile } from "../../Api/Profiles";
 
 const ROLE_OPTIONS = [
   { value: "Admin", label: "Admin" },
@@ -46,14 +46,12 @@ const SignUp = () => {
 
     setLoading(true);
     try {
-      const { error: insertError } = await supabase.from("profiles").insert([
-        {
-          name: trimmedName,
-          email: trimmedEmail,
-          password,
-          role,
-        },
-      ]);
+      const { error: insertError } = await createProfile({
+        name: trimmedName,
+        email: trimmedEmail,
+        password,
+        role,
+      });
 
       if (insertError) {
         // Common Supabase/Postgres unique violation error shape
