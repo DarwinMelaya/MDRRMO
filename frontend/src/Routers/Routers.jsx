@@ -4,7 +4,15 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import { Home, SignUp, Login, AdminDashboard, AdminReport } from "../pages";
+import {
+  SignUp,
+  Login,
+  AdminDashboard,
+  AdminReport,
+  Feed,
+  Reports,
+  UserProfile,
+} from "../pages";
 import Layout from "../Components/Layout/Layout";
 import { getSession } from "../Api/Profiles";
 
@@ -26,9 +34,15 @@ export const Routers = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Home />} />
         <Route path="/signup" element={<SignUp />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Login />} />
+
+        {/* User Routes */}
+        <Route path="/feed" element={<Feed />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/user-profile" element={<UserProfile />} />
+
+        {/* Admin Routes */}
         <Route
           path="/admin/dashboard"
           element={
