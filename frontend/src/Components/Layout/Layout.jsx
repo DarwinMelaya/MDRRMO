@@ -1,6 +1,20 @@
 import AdminSidebar from "./AdminSidebar";
+import UserSidebar from "./UserSidebar";
 
-const Layout = ({ children }) => {
+const Layout = ({ children, variant = "admin" }) => {
+  if (variant === "user") {
+    return (
+      <div className="min-h-screen w-full bg-[#070b14] text-slate-100">
+        <div className="flex min-h-screen w-full">
+          <UserSidebar />
+          <main className="mx-auto min-h-screen w-full max-w-lg flex-1 px-4 pb-28 pt-6 lg:mx-0 lg:max-w-none lg:px-10 lg:pb-8 lg:pt-8">
+            {children}
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50">
       <div className="flex min-h-screen w-full">

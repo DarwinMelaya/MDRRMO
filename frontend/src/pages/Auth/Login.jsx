@@ -4,6 +4,7 @@ import { loginProfile, setSession } from "../../Api/Profiles";
 
 const getRouteForRole = (role) => {
   if (role === "Admin") return "/admin/dashboard";
+  if (role === "Community") return "/feed";
   return "/";
 };
 

@@ -20,10 +20,30 @@ const RequireAdmin = ({ children }) => {
   const user = getSession();
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   if (user.role !== "Admin") {
+    if (user.role === "Community") {
+      return <Navigate to="/feed" replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
+const RequireCommunity = ({ children }) => {
+  const user = getSession();
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (user.role !== "Community") {
+    if (user.role === "Admin") {
+      return <Navigate to="/admin/dashboard" replace />;
+    }
     return <Navigate to="/" replace />;
   }
 
@@ -37,10 +57,37 @@ export const Routers = () => {
         <Route path="/signup" element={<SignUp />} />
         <Route path="/" element={<Login />} />
 
-        {/* User Routes */}
-        <Route path="/feed" element={<Feed />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/user-profile" element={<UserProfile />} />
+        {/* Community Routes */}
+        <Route
+          path="/feed"
+          element={
+            <RequireCommunity>
+              <Layout variant="user">
+                <Feed />
+              </Layout>
+            </RequireCommunity>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <RequireCommunity>
+              <Layout variant="user">
+                <Reports />
+              </Layout>
+            </RequireCommunity>
+          }
+        />
+        <Route
+          path="/user-profile"
+          element={
+            <RequireCommunity>
+              <Layout variant="user">
+                <UserProfile />
+              </Layout>
+            </RequireCommunity>
+          }
+        />
 
         {/* Admin Routes */}
         <Route
