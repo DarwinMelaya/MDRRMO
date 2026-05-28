@@ -24,6 +24,24 @@ const TYPE_FILTERS = [
   { id: "utilities", label: "Utilities" },
 ];
 
+const getReportsSnapshot = (items) =>
+  items
+    .map(
+      (report) =>
+        [
+          report.id,
+          report.created_at,
+          report.updated_at,
+          report.report_type,
+          report.details,
+          report.status,
+          report.evidence_url,
+          report.latitude,
+          report.longitude,
+        ].join("|"),
+    )
+    .join("||");
+
 const AdminDashboard = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +53,7 @@ const AdminDashboard = () => {
   const [newReportsCount, setNewReportsCount] = useState(0);
   const hasLoadedReportsRef = useRef(false);
   const knownReportIdsRef = useRef(new Set());
+  const lastReportsSnapshotRef = useRef("");
 
   const loadReports = useCallback(async () => {
     const { data, error: fetchError } = await fetchCommunityReports();
@@ -45,7 +64,13 @@ const AdminDashboard = () => {
     }
 
     const safeData = Array.isArray(data) ? data : [];
-    const currentIds = new Set(safeData.map((report) => report.id));
+    const sortedData = [...safeData].sort((a, b) => {
+      const timeA = a?.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b?.created_at ? new Date(b.created_at).getTime() : 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return String(b?.id ?? "").localeCompare(String(a?.id ?? ""));
+    });
+    const currentIds = new Set(sortedData.map((report) => report.id));
 
     if (hasLoadedReportsRef.current) {
       let incomingCount = 0;
@@ -64,7 +89,16 @@ const AdminDashboard = () => {
     knownReportIdsRef.current = currentIds;
 
     setError("");
-    setReports(safeData);
+    const nextSnapshot = getReportsSnapshot(sortedData);
+    if (nextSnapshot === lastReportsSnapshotRef.current) return;
+
+    lastReportsSnapshotRef.current = nextSnapshot;
+    setReports(sortedData);
+    setViewingReport((current) => {
+      if (!current) return current;
+      const updated = sortedData.find((report) => report.id === current.id);
+      return updated || current;
+    });
   }, []);
 
   useEffect(() => {
