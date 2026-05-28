@@ -1,0 +1,120 @@
+import supabase, {
+  REPORT_EVIDENCE_BUCKET,
+  REPORTS_TABLE,
+} from "../utils/supabaseClient";
+import { compressImageFile } from "../utils/compressImage";
+
+const evidencePath = (file) => {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const safeExt = /^[a-z0-9]+$/i.test(ext) ? ext : "jpg";
+  const id =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `${id}.${safeExt}`;
+};
+
+export const uploadReportEvidence = async (file) => {
+  const { file: compressed } = await compressImageFile(file);
+  const path = evidencePath(compressed);
+  const { error: uploadError } = await supabase.storage
+    .from(REPORT_EVIDENCE_BUCKET)
+    .upload(path, compressed, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: compressed.type || "image/jpeg",
+    });
+
+  if (uploadError) {
+    return { url: null, error: uploadError };
+  }
+
+  const { data } = supabase.storage
+    .from(REPORT_EVIDENCE_BUCKET)
+    .getPublicUrl(path);
+
+  return { url: data.publicUrl, error: null };
+};
+
+const insertReport = async (payload) => {
+  const { data, error } = await supabase
+    .from(REPORTS_TABLE)
+    .insert([payload])
+    .select(
+      "id, details, evidence_url, hide_identity, latitude, longitude, created_at",
+    );
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  return { data: data?.[0] ?? null, error: null };
+};
+
+export const submitCommunityReport = async ({
+  details,
+  hideIdentity,
+  latitude,
+  longitude,
+  reporterId,
+  evidenceFile,
+}) => {
+  let evidenceUrl = null;
+  let evidenceWarning = null;
+
+  if (evidenceFile) {
+    const { url, error: uploadError } = await uploadReportEvidence(evidenceFile);
+    if (uploadError) {
+      evidenceWarning =
+        uploadError.message ||
+        "Evidence upload failed; report saved without image.";
+    } else {
+      evidenceUrl = url;
+    }
+  }
+
+  const basePayload = {
+    details: details.trim(),
+    hide_identity: hideIdentity,
+    latitude,
+    longitude,
+    evidence_url: evidenceUrl,
+    reporter_id: hideIdentity ? null : reporterId ?? null,
+  };
+
+  let { data, error } = await insertReport(basePayload);
+
+  if (error?.code === "23503" && basePayload.reporter_id) {
+    ({ data, error } = await insertReport({
+      ...basePayload,
+      reporter_id: null,
+    }));
+  }
+
+  if (error) {
+    return { data: null, error, evidenceWarning };
+  }
+
+  return { data, error: null, evidenceWarning };
+};
+
+export const fetchCommunityReports = async () => {
+  const { data, error } = await supabase
+    .from(REPORTS_TABLE)
+    .select(
+      `
+      id,
+      details,
+      evidence_url,
+      hide_identity,
+      latitude,
+      longitude,
+      created_at,
+      reporter_id,
+      profiles:reporter_id ( name )
+    `,
+    )
+    .order("created_at", { ascending: false });
+
+  return { data: data ?? [], error };
+};

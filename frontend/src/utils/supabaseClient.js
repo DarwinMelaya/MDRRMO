@@ -9,6 +9,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+/** @see frontend/supabase/profiles.sql */
+export const PROFILES_TABLE = "profiles";
+
+/** @see frontend/supabase/community_reports.sql */
+export const REPORTS_TABLE = "community_reports";
+
+/** Storage bucket for report evidence images */
+export const REPORT_EVIDENCE_BUCKET = "report-evidence";
+
 // Database only — login/signup use the profiles table, not Supabase Auth
 const supabase = createClient(supabaseUrl ?? "", supabaseAnonKey ?? "");
 
