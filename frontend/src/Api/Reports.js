@@ -157,3 +157,44 @@ export const deleteCommunityReport = async ({
 
   return { error: null };
 };
+
+export const updateCommunityReport = async ({
+  reportId,
+  reporterId,
+  reportType,
+  details,
+  hideIdentity,
+}) => {
+  if (!reportId || !reporterId) {
+    return { data: null, error: new Error("Missing report or user information.") };
+  }
+
+  const payload = {
+    report_type: reportType,
+    details: details.trim(),
+    hide_identity: hideIdentity,
+  };
+
+  const { data, error } = await supabase
+    .from(REPORTS_TABLE)
+    .update(payload)
+    .eq("id", reportId)
+    .eq("reporter_id", reporterId)
+    .select(
+      `
+      id,
+      report_type,
+      details,
+      evidence_url,
+      hide_identity,
+      latitude,
+      longitude,
+      created_at,
+      reporter_id,
+      profiles:reporter_id ( name )
+    `,
+    )
+    .maybeSingle();
+
+  return { data: data ?? null, error };
+};

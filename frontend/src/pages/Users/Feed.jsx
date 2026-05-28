@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
-import { deleteCommunityReport, fetchCommunityReports } from "../../Api/Reports";
+import {
+  deleteCommunityReport,
+  fetchCommunityReports,
+  updateCommunityReport,
+} from "../../Api/Reports";
 import { getSession } from "../../Api/Profiles";
 import DeleteReportModal from "../../Components/Modals/Community/DeleteReportModal";
+import EditReportModal from "../../Components/Modals/Community/EditReportModal";
 import ReportTypeBadge from "../../Components/Reports/ReportTypeBadge";
 import { getReportTypeAccent } from "../../constants/reportTypes";
 import { haversineDistanceMeters, formatDistanceLabel } from "../../utils/geo";
@@ -21,6 +26,7 @@ import {
   HiPlus,
   HiRss,
   HiShieldCheck,
+  HiPencilSquare,
   HiTrash,
   HiEyeSlash,
 } from "react-icons/hi2";
@@ -45,7 +51,15 @@ const ImagePlaceholder = () => (
   </div>
 );
 
-const FeedReportCard = ({ report, showDistance, canDelete, onDelete, deleting }) => {
+const FeedReportCard = ({
+  report,
+  showDistance,
+  canManage,
+  onEdit,
+  onDelete,
+  deleting,
+  editing,
+}) => {
   const accent = getReportTypeAccent(report.report_type);
 
   return (
@@ -113,16 +127,27 @@ const FeedReportCard = ({ report, showDistance, canDelete, onDelete, deleting })
               Anonymous
             </span>
           ) : null}
-          {canDelete ? (
-            <button
-              type="button"
-              onClick={() => onDelete(report)}
-              disabled={deleting}
-              className="inline-flex items-center gap-1 rounded-md border border-red-500/40 bg-red-950/30 px-2 py-0.5 text-[10px] font-semibold text-red-300 hover:bg-red-950/45 disabled:opacity-60"
-            >
-              <HiTrash className="h-3 w-3" aria-hidden />
-              {deleting ? "Deleting" : "Delete"}
-            </button>
+          {canManage ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onEdit(report)}
+                disabled={deleting || editing}
+                className="inline-flex items-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-950/30 px-2 py-0.5 text-[10px] font-semibold text-cyan-300 hover:bg-cyan-950/45 disabled:opacity-60"
+              >
+                <HiPencilSquare className="h-3 w-3" aria-hidden />
+                {editing ? "Saving" : "Edit"}
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(report)}
+                disabled={deleting || editing}
+                className="inline-flex items-center gap-1 rounded-md border border-red-500/40 bg-red-950/30 px-2 py-0.5 text-[10px] font-semibold text-red-300 hover:bg-red-950/45 disabled:opacity-60"
+              >
+                <HiTrash className="h-3 w-3" aria-hidden />
+                {deleting ? "Deleting" : "Delete"}
+              </button>
+            </>
           ) : null}
         </div>
       </div>
@@ -139,7 +164,9 @@ const Feed = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState("");
   const [deletingReportId, setDeletingReportId] = useState(null);
+  const [editingReportId, setEditingReportId] = useState(null);
   const [reportPendingDelete, setReportPendingDelete] = useState(null);
+  const [reportPendingEdit, setReportPendingEdit] = useState(null);
   const [session] = useState(() => getSession());
   const sessionUserId = session?.id ?? null;
 
@@ -229,6 +256,46 @@ const Feed = () => {
       return;
     }
     setReportPendingDelete(report);
+  };
+
+  const requestEditReport = (report) => {
+    if (!sessionUserId || report.reporter_id !== sessionUserId) {
+      setError("You can only edit reports created by your account.");
+      return;
+    }
+    setReportPendingEdit(report);
+  };
+
+  const handleEditReport = async ({ reportType, details, hideIdentity }) => {
+    if (!reportPendingEdit) return;
+
+    setError("");
+    setEditingReportId(reportPendingEdit.id);
+    const { data: updated, error: updateError } = await updateCommunityReport({
+      reportId: reportPendingEdit.id,
+      reporterId: sessionUserId,
+      reportType,
+      details,
+      hideIdentity,
+    });
+    setEditingReportId(null);
+
+    if (updateError) {
+      setError(updateError.message || "Could not update report.");
+      return;
+    }
+
+    if (!updated) {
+      setError("Could not update report.");
+      return;
+    }
+
+    setReports((prev) =>
+      prev.map((item) =>
+        item.id === updated.id ? enrichReportForFeed(updated) : item,
+      ),
+    );
+    setReportPendingEdit(null);
   };
 
   const handleDeleteReport = async () => {
@@ -395,13 +462,25 @@ const Feed = () => {
               key={report.id}
               report={report}
               showDistance={activeFilter === "near"}
-              canDelete={Boolean(sessionUserId && report.reporter_id === sessionUserId)}
+              canManage={Boolean(sessionUserId && report.reporter_id === sessionUserId)}
+              onEdit={requestEditReport}
               onDelete={requestDeleteReport}
               deleting={deletingReportId === report.id}
+              editing={editingReportId === report.id}
             />
           ))}
         </div>
       ) : null}
+      <EditReportModal
+        isOpen={Boolean(reportPendingEdit)}
+        report={reportPendingEdit}
+        isSaving={Boolean(reportPendingEdit && editingReportId === reportPendingEdit.id)}
+        onCancel={() => {
+          if (editingReportId) return;
+          setReportPendingEdit(null);
+        }}
+        onConfirm={handleEditReport}
+      />
       <DeleteReportModal
         isOpen={Boolean(reportPendingDelete)}
         report={reportPendingDelete}
