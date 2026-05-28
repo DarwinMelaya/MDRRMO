@@ -45,8 +45,8 @@ const UserSidebar = () => {
             aria-label="Create report"
             className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[42%]"
           >
-            <span className="absolute inset-0 -z-10 scale-150 rounded-full bg-cyan-400/35 blur-xl" />
-            <span className="relative flex h-[58px] w-[58px] items-center justify-center rounded-full border-[5px] border-[#070b14] bg-cyan-400 shadow-[0_0_28px_rgba(34,211,238,0.55)] transition-transform duration-200 hover:scale-105 active:scale-95">
+            <span className="absolute inset-0 -z-10 scale-150 rounded-full bg-cyan-400/35 blur-xl animate-pulse [animation-duration:1.1s]" />
+            <span className="relative flex h-[58px] w-[58px] items-center justify-center rounded-full border-[5px] border-[#070b14] bg-cyan-400 shadow-[0_0_28px_rgba(34,211,238,0.55)] transition-transform duration-200 hover:scale-105 active:scale-95 animate-pulse [animation-duration:1.1s]">
               <HiPlus className="h-7 w-7 text-slate-950" aria-hidden />
             </span>
           </NavLink>
