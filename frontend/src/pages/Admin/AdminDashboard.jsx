@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { fetchCommunityReports } from "../../Api/Reports";
 import ReportDetailModal from "../../Components/Admin/ReportDetailModal";
+import ReportWarningModal from "../../Components/Modals/Admin/ReportWarningModal";
 import CommunityReportsMap from "../../Components/Map/CommunityReportsMap";
 import ReportTypeBadge from "../../Components/Reports/ReportTypeBadge";
 import {
@@ -30,6 +31,10 @@ const AdminDashboard = () => {
   const [selectedId, setSelectedId] = useState(null);
   const [viewingReport, setViewingReport] = useState(null);
   const [typeFilter, setTypeFilter] = useState("all");
+  const [showReportWarning, setShowReportWarning] = useState(false);
+  const [newReportsCount, setNewReportsCount] = useState(0);
+  const hasLoadedReportsRef = useRef(false);
+  const knownReportIdsRef = useRef(new Set());
 
   const loadReports = useCallback(async () => {
     const { data, error: fetchError } = await fetchCommunityReports();
@@ -38,8 +43,28 @@ const AdminDashboard = () => {
       setReports([]);
       return;
     }
+
+    const safeData = Array.isArray(data) ? data : [];
+    const currentIds = new Set(safeData.map((report) => report.id));
+
+    if (hasLoadedReportsRef.current) {
+      let incomingCount = 0;
+      for (const id of currentIds) {
+        if (!knownReportIdsRef.current.has(id)) incomingCount += 1;
+      }
+
+      if (incomingCount > 0) {
+        setNewReportsCount((prev) => prev + incomingCount);
+        setShowReportWarning(true);
+      }
+    } else {
+      hasLoadedReportsRef.current = true;
+    }
+
+    knownReportIdsRef.current = currentIds;
+
     setError("");
-    setReports(data);
+    setReports(safeData);
   }, []);
 
   useEffect(() => {
@@ -52,7 +77,7 @@ const AdminDashboard = () => {
     };
 
     run();
-    const interval = setInterval(loadReports, 60000);
+    const interval = setInterval(loadReports, 5000);
 
     return () => {
       active = false;
@@ -85,6 +110,11 @@ const AdminDashboard = () => {
 
   const handleCloseReport = () => {
     setViewingReport(null);
+  };
+
+  const handleCloseWarning = () => {
+    setShowReportWarning(false);
+    setNewReportsCount(0);
   };
 
   return (
@@ -298,6 +328,12 @@ const AdminDashboard = () => {
       {viewingReport ? (
         <ReportDetailModal report={viewingReport} onClose={handleCloseReport} />
       ) : null}
+
+      <ReportWarningModal
+        isOpen={showReportWarning}
+        newCount={newReportsCount}
+        onClose={handleCloseWarning}
+      />
     </section>
   );
 };
