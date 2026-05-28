@@ -10,55 +10,18 @@ import {
   compressImageFile,
   formatFileSize,
 } from "../../utils/compressImage";
-
-const BackIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    className="h-5 w-5"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    aria-hidden
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15 6l-6 6 6 6" />
-  </svg>
-);
-
-const CameraIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    className="h-5 w-5 text-cyan-400"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.75}
-    aria-hidden
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"
-    />
-    <circle cx="12" cy="13" r="3.25" />
-  </svg>
-);
-
-const LocationIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    className="h-4 w-4 shrink-0 text-cyan-400"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.75}
-    aria-hidden
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z"
-    />
-    <circle cx="12" cy="11" r="2.25" />
-  </svg>
-);
+import {
+  DEFAULT_REPORT_TYPE,
+  REPORT_TYPES,
+} from "../../constants/reportTypes";
+import { ReportTypeIcon } from "../../constants/reportTypeIcons";
+import {
+  HiArrowLeft,
+  HiCamera,
+  HiMapPin,
+  HiUserCircle,
+  HiPaperAirplane,
+} from "react-icons/hi2";
 
 const MIN_DETAILS_LENGTH = 5;
 
@@ -66,6 +29,7 @@ const Reports = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
+  const [reportType, setReportType] = useState(DEFAULT_REPORT_TYPE);
   const [details, setDetails] = useState("");
   const [hideIdentity, setHideIdentity] = useState(false);
   const [evidenceFile, setEvidenceFile] = useState(null);
@@ -209,6 +173,7 @@ const Reports = () => {
 
       const { error: submitError, evidenceWarning } = await submitCommunityReport(
         {
+          reportType,
           details: trimmed,
           hideIdentity,
           latitude: coords.latitude,
@@ -229,6 +194,7 @@ const Reports = () => {
 
       const warningNote = evidenceWarning ? ` ${evidenceWarning}` : "";
       setSuccess(`Report submitted successfully.${warningNote}`);
+      setReportType(DEFAULT_REPORT_TYPE);
       setDetails("");
       setHideIdentity(false);
       clearEvidence();
@@ -250,7 +216,7 @@ const Reports = () => {
           className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700/80 bg-slate-900/80 text-slate-200 transition hover:border-slate-600 hover:bg-slate-800"
           aria-label="Back to feed"
         >
-          <BackIcon />
+          <HiArrowLeft className="h-5 w-5" aria-hidden />
         </button>
         <h1 className="text-lg font-bold tracking-[0.12em] text-white">
           NEW REPORT
@@ -258,6 +224,52 @@ const Reports = () => {
       </header>
 
       <form onSubmit={onSubmit} className="space-y-4">
+        <div className="rounded-2xl border border-slate-700/70 bg-slate-900/50 p-4 shadow-inner">
+          <p className="text-[10px] font-semibold tracking-[0.2em] text-slate-500">
+            REPORT TYPE
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {REPORT_TYPES.map((type) => {
+              const selected = reportType === type.value;
+              return (
+                <button
+                  key={type.value}
+                  type="button"
+                  disabled={loading || compressingEvidence}
+                  onClick={() => setReportType(type.value)}
+                  className={[
+                    "flex gap-2.5 rounded-xl border px-3 py-2.5 text-left transition",
+                    selected
+                      ? "border-cyan-400/60 bg-cyan-400/10 shadow-[0_0_16px_rgba(34,211,238,0.2)]"
+                      : "border-slate-800 bg-[#0a0f1a] hover:border-slate-600",
+                  ].join(" ")}
+                >
+                  <ReportTypeIcon
+                    type={type.value}
+                    className={[
+                      "mt-0.5 h-5 w-5 shrink-0",
+                      selected ? "text-cyan-300" : "text-slate-400",
+                    ].join(" ")}
+                  />
+                  <div className="min-w-0">
+                  <p
+                    className={[
+                      "text-xs font-semibold leading-tight",
+                      selected ? "text-cyan-200" : "text-slate-200",
+                    ].join(" ")}
+                  >
+                    {type.label}
+                  </p>
+                  <p className="mt-0.5 line-clamp-2 text-[10px] text-slate-500">
+                    {type.description}
+                  </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-slate-700/70 bg-slate-900/50 p-4 shadow-inner">
           <p className="text-[10px] font-semibold tracking-[0.2em] text-slate-500">
             REPORT DETAILS
@@ -315,7 +327,7 @@ const Reports = () => {
             disabled={loading || compressingEvidence}
             className="mt-4 flex w-full items-center justify-center gap-2 py-2 text-sm font-semibold text-white transition hover:text-cyan-300 disabled:opacity-60"
           >
-            <CameraIcon />
+            <HiCamera className="h-5 w-5 text-cyan-400" aria-hidden />
             {compressingEvidence ? "Compressing…" : "Add Evidence"}
           </button>
         </div>
@@ -323,7 +335,10 @@ const Reports = () => {
         <div className="rounded-2xl border border-slate-700/70 bg-slate-900/50 px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-medium text-white">Hide Identity</p>
+              <p className="flex items-center gap-1.5 text-sm font-medium text-white">
+                <HiUserCircle className="h-4 w-4 text-cyan-400/80" aria-hidden />
+                Hide Identity
+              </p>
               <p className="text-xs text-slate-500">
                 Your name will not be stored with this report
               </p>
@@ -353,7 +368,7 @@ const Reports = () => {
         <div className="rounded-2xl border border-slate-700/70 bg-slate-900/50 px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-2">
-              <LocationIcon />
+              <HiMapPin className="h-4 w-4 shrink-0 text-cyan-400" aria-hidden />
               <div className="min-w-0">
                 <p className="text-sm font-medium text-white">Location</p>
                 {locationStatus === "loading" ? (
@@ -444,7 +459,10 @@ const Reports = () => {
           disabled={!canSubmit}
           className="w-full rounded-xl bg-cyan-400 py-3 text-sm font-bold text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.35)] transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? "Submitting…" : "Submit Report"}
+          <span className="inline-flex items-center justify-center gap-2">
+            <HiPaperAirplane className="h-4 w-4" aria-hidden />
+            {loading ? "Submitting…" : "Submit Report"}
+          </span>
         </button>
 
         {locationStatus === "error" && !useManualLocation ? (

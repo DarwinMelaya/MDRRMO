@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { getReportTypeMeta } from "../../constants/reportTypes";
+import { buildReportPinHtml } from "./reportMapPins";
 
 const BATANGAS_CENTER = [13.4, 121.95];
 const DEFAULT_ZOOM = 10;
@@ -55,45 +57,16 @@ const layoutReportPositions = (reports) => {
   return laidOut;
 };
 
-const createTechPinIcon = (reportId, isActive) => {
-  const gradId = `pin-grad-${String(reportId).replace(/[^a-z0-9]/gi, "").slice(0, 12)}`;
-  const activeClass = isActive ? " tech-pin--active" : "";
-
-  return L.divIcon({
-    className: "tech-pin-leaflet-icon",
-    html: `
-      <div class="tech-pin${activeClass}" role="button" tabindex="0" aria-label="View report">
-        <span class="tech-pin__pulse" aria-hidden="true"></span>
-        <span class="tech-pin__pulse tech-pin__pulse--delayed" aria-hidden="true"></span>
-        <span class="tech-pin__orbit" aria-hidden="true"></span>
-        <span class="tech-pin__core" aria-hidden="true">
-          <svg viewBox="0 0 32 32" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="${gradId}" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#67e8f9"/>
-                <stop offset="0.55" stop-color="#22d3ee"/>
-                <stop offset="1" stop-color="#3b82f6"/>
-              </linearGradient>
-            </defs>
-            <polygon
-              points="16,3 27.5,9.5 27.5,22.5 16,29 4.5,22.5 4.5,9.5"
-              fill="url(#${gradId})"
-              stroke="rgba(224,242,254,0.9)"
-              stroke-width="0.75"
-            />
-            <circle cx="16" cy="16" r="4.5" fill="#020617" opacity="0.85"/>
-            <circle cx="16" cy="16" r="2" fill="#22d3ee"/>
-            <path d="M16 10v3M16 19v3M10 16h3M19 16h3" stroke="#67e8f9" stroke-width="0.8" stroke-linecap="round" opacity="0.7"/>
-          </svg>
-        </span>
-      </div>
-    `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
+const createReportPinIcon = (report, isActive) =>
+  L.divIcon({
+    className: "report-pin-leaflet-icon",
+    html: buildReportPinHtml(report, isActive),
+    iconSize: [48, 56],
+    iconAnchor: [24, 28],
   });
-};
 
 const buildTooltipContent = (report) => {
+  const typeMeta = getReportTypeMeta(report.report_type);
   const raw =
     report.details?.length > 80
       ? `${report.details.slice(0, 80)}…`
@@ -104,8 +77,8 @@ const buildTooltipContent = (report) => {
   );
 
   return `
-    <div class="report-map-tooltip__inner">
-      <strong>◈ Incident Node</strong>
+    <div class="report-map-tooltip__inner report-map-tooltip__inner--${report.report_type ?? "other"}">
+      <strong>◈ ${escapeHtml(typeMeta.label)}</strong>
       <span>${when}</span>
       <p>${preview}</p>
       <em>Click to open intel</em>
@@ -114,13 +87,12 @@ const buildTooltipContent = (report) => {
 };
 
 const setPinState = (marker, { active, hover }) => {
-  const pin = marker.getElement()?.querySelector(".tech-pin");
+  const pin = marker.getElement()?.querySelector(".report-pin");
   if (!pin) return;
-  pin.classList.toggle("tech-pin--active", !!active);
-  pin.classList.toggle("tech-pin--hover", !!hover);
+  pin.classList.toggle("report-pin--active", !!active);
+  pin.classList.toggle("report-pin--hover", !!hover);
 };
 
-/** L.Marker has no bringToFront — use zIndexOffset instead. */
 const elevateMarker = (marker, offset = 800) => {
   if (marker?.setZIndexOffset) {
     marker.setZIndexOffset(offset);
@@ -200,14 +172,14 @@ const CommunityReportsMap = ({ reports, selectedId, onViewReport }) => {
       const isActive = selectedId === report.id;
 
       const marker = L.marker([lat, lng], {
-        icon: createTechPinIcon(report.id, isActive),
+        icon: createReportPinIcon(report, isActive),
         riseOnHover: true,
         riseOffset: 250,
       }).addTo(map);
 
       marker.bindTooltip(buildTooltipContent(report), {
         direction: "top",
-        offset: [0, -18],
+        offset: [0, -22],
         opacity: 1,
         className: "report-map-tooltip",
       });
@@ -222,16 +194,16 @@ const CommunityReportsMap = ({ reports, selectedId, onViewReport }) => {
       });
 
       marker.on("mouseover", () => {
-        const isActive = selectedIdRef.current === report.id;
-        setPinState(marker, { active: isActive, hover: true });
-        elevateMarker(marker, isActive ? 1000 : 800);
+        const isPinActive = selectedIdRef.current === report.id;
+        setPinState(marker, { active: isPinActive, hover: true });
+        elevateMarker(marker, isPinActive ? 1000 : 800);
         marker.openTooltip();
       });
 
       marker.on("mouseout", () => {
-        const isActive = selectedIdRef.current === report.id;
-        setPinState(marker, { active: isActive, hover: false });
-        if (!isActive) resetMarkerElevation(marker);
+        const isPinActive = selectedIdRef.current === report.id;
+        setPinState(marker, { active: isPinActive, hover: false });
+        if (!isPinActive) resetMarkerElevation(marker);
       });
 
       markersRef.current.push({ marker, report, lat, lng });

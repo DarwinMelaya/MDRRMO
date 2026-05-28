@@ -16,7 +16,7 @@
   margin: 10px 12px;
 }
 
-/* Admin map — tech / AI style incident pins */
+/* Admin map — report-type incident pins */
 .report-map-container {
   cursor: grab;
   z-index: 1;
@@ -26,92 +26,182 @@
   cursor: grabbing;
 }
 
-.tech-pin-leaflet-icon {
+.report-pin-leaflet-icon {
   background: transparent !important;
   border: none !important;
 }
 
-.tech-pin {
+.report-pin {
+  --pin-pulse: rgba(34, 211, 238, 0.5);
+  --pin-ring: rgba(59, 130, 246, 0.4);
+  --pin-glow: rgba(34, 211, 238, 0.55);
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 56px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   cursor: pointer;
   outline: none;
 }
 
-.tech-pin__pulse {
+.report-pin__pulse {
   position: absolute;
-  inset: 6px;
+  top: 2px;
+  left: 50%;
+  width: 32px;
+  height: 32px;
+  margin-left: -16px;
   border-radius: 50%;
-  border: 1px solid rgba(34, 211, 238, 0.45);
-  animation: tech-pin-pulse 2.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  border: 1px solid var(--pin-pulse);
+  animation: report-pin-pulse 2.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
   pointer-events: none;
 }
 
-.tech-pin__pulse--delayed {
-  animation-delay: 1.4s;
+.report-pin__pulse--delayed {
+  animation-delay: 1.3s;
 }
 
-.tech-pin__orbit {
+.report-pin__ring {
   position: absolute;
-  width: 30px;
-  height: 30px;
+  top: 6px;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
   border-radius: 50%;
-  border: 1px dashed rgba(59, 130, 246, 0.35);
-  animation: tech-pin-orbit 8s linear infinite;
+  border: 1px dashed var(--pin-ring);
+  animation: report-pin-orbit 7s linear infinite;
   pointer-events: none;
 }
 
-.tech-pin__core {
+.report-pin__core {
   position: relative;
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.55));
+  width: 26px;
+  height: 26px;
+  margin-top: 2px;
+  filter: drop-shadow(0 0 10px var(--pin-glow));
   transition: transform 0.2s ease, filter 0.2s ease;
 }
 
-.tech-pin--hover .tech-pin__core,
-.tech-pin:focus-visible .tech-pin__core {
-  transform: scale(1.12);
-  filter: drop-shadow(0 0 14px rgba(103, 232, 249, 0.85));
+.report-pin__core > svg {
+  position: absolute;
+  inset: 0;
 }
 
-.tech-pin--active .tech-pin__pulse {
-  border-color: rgba(103, 232, 249, 0.75);
-  animation-duration: 1.8s;
+.report-pin__icon {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  pointer-events: none;
 }
 
-.tech-pin--active .tech-pin__orbit {
-  border-color: rgba(103, 232, 249, 0.55);
-  border-style: solid;
-  box-shadow: 0 0 12px rgba(34, 211, 238, 0.35);
+.report-pin__icon-svg {
+  width: 13px;
+  height: 13px;
 }
 
-.tech-pin--active .tech-pin__core {
-  transform: scale(1.08);
-  filter: drop-shadow(0 0 16px rgba(103, 232, 249, 0.9));
+.report-pin__tag {
+  position: relative;
+  z-index: 3;
+  margin-top: 2px;
+  max-width: 52px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 4px;
+  background: rgba(2, 6, 23, 0.88);
+  padding: 1px 5px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  pointer-events: none;
 }
 
-@keyframes tech-pin-pulse {
+.report-pin--hover .report-pin__core,
+.report-pin:focus-visible .report-pin__core {
+  transform: scale(1.14);
+}
+
+.report-pin--active .report-pin__pulse {
+  animation-duration: 1.5s;
+}
+
+.report-pin--active .report-pin__core {
+  transform: scale(1.1);
+}
+
+/* Medical — red hex + cross */
+.report-pin--medical_emergency {
+  --pin-pulse: rgba(248, 113, 113, 0.55);
+  --pin-ring: rgba(239, 68, 68, 0.45);
+  --pin-glow: rgba(239, 68, 68, 0.65);
+}
+
+/* Fire — orange triangle + flame */
+.report-pin--fire_hazard {
+  --pin-pulse: rgba(251, 146, 60, 0.55);
+  --pin-ring: rgba(249, 115, 22, 0.45);
+  --pin-glow: rgba(249, 115, 22, 0.65);
+}
+
+/* Security — rose shield */
+.report-pin--crime_security {
+  --pin-pulse: rgba(251, 113, 133, 0.55);
+  --pin-ring: rgba(244, 63, 94, 0.45);
+  --pin-glow: rgba(244, 63, 94, 0.65);
+}
+
+/* Traffic — amber square + car */
+.report-pin--traffic_incident {
+  --pin-pulse: rgba(251, 191, 36, 0.5);
+  --pin-ring: rgba(245, 158, 11, 0.45);
+  --pin-glow: rgba(245, 158, 11, 0.6);
+}
+
+/* Utilities — yellow diamond + bolt */
+.report-pin--utilities {
+  --pin-pulse: rgba(250, 204, 21, 0.5);
+  --pin-ring: rgba(234, 179, 8, 0.45);
+  --pin-glow: rgba(234, 179, 8, 0.6);
+}
+
+/* Disaster — violet circle + waves */
+.report-pin--disaster {
+  --pin-pulse: rgba(167, 139, 250, 0.55);
+  --pin-ring: rgba(139, 92, 246, 0.45);
+  --pin-glow: rgba(139, 92, 246, 0.65);
+}
+
+/* Other — cyan hex */
+.report-pin--other {
+  --pin-pulse: rgba(34, 211, 238, 0.5);
+  --pin-ring: rgba(59, 130, 246, 0.4);
+  --pin-glow: rgba(34, 211, 238, 0.55);
+}
+
+@keyframes report-pin-pulse {
   0% {
-    transform: scale(0.5);
-    opacity: 0.75;
-  }
-  70% {
-    opacity: 0.15;
+    transform: scale(0.55);
+    opacity: 0.8;
   }
   100% {
-    transform: scale(1.45);
+    transform: scale(1.5);
     opacity: 0;
   }
 }
 
-@keyframes tech-pin-orbit {
+@keyframes report-pin-orbit {
   from {
     transform: rotate(0deg);
   }

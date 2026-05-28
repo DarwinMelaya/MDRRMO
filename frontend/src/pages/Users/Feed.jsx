@@ -1,18 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
+import { Link } from "react-router-dom";
 import { fetchCommunityReports } from "../../Api/Reports";
+import ReportTypeBadge from "../../Components/Reports/ReportTypeBadge";
+import { getReportTypeAccent } from "../../constants/reportTypes";
 import { haversineDistanceMeters, formatDistanceLabel } from "../../utils/geo";
 import {
   enrichReportForFeed,
   matchesFeedFilter,
 } from "../../utils/reportFeed";
 import { requestDeviceLocation } from "../../utils/geolocation";
+import { ReportTypeIcon } from "../../constants/reportTypeIcons";
+import {
+  HiBolt,
+  HiClock,
+  HiMapPin,
+  HiPhoto,
+  HiPlus,
+  HiRss,
+  HiShieldCheck,
+  HiEyeSlash,
+} from "react-icons/hi2";
 
 const FILTERS = [
-  { id: "recent", label: "Recent" },
-  { id: "near", label: "Near Me" },
-  { id: "safety", label: "Safety" },
-  { id: "utilities", label: "Utilities" },
+  { id: "recent", label: "Recent", Icon: HiClock },
+  { id: "near", label: "Near Me", Icon: HiMapPin },
+  { id: "safety", label: "Safety", Icon: HiShieldCheck },
+  { id: "utilities", label: "Utilities", Icon: HiBolt },
 ];
 
 const RADIUS_OPTIONS = [
@@ -20,82 +34,84 @@ const RADIUS_OPTIONS = [
   { id: 1000, label: "1km" },
 ];
 
-const statusToneClass = {
-  danger: "text-red-400",
-  warning: "text-amber-400",
-  info: "text-cyan-400",
-};
-
-const WarningIcon = () => (
-  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-400/15 text-amber-400 ring-1 ring-amber-400/30">
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
-      <path d="M12 3 2 21h20L12 3zm0 6.5a1 1 0 0 1 1 1v4a1 1 0 1 1-2 0v-4a1 1 0 0 1 1-1zm0 9.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z" />
-    </svg>
-  </span>
-);
-
 const ImagePlaceholder = () => (
-  <div className="flex h-36 w-full items-center justify-center rounded-xl bg-slate-800/80 ring-1 ring-slate-700/60">
-    <svg
-      viewBox="0 0 24 24"
-      className="h-10 w-10 text-slate-600"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.25}
-      aria-hidden
-    >
-      <rect x="3" y="5" width="18" height="14" rx="2" />
-      <circle cx="8.5" cy="10" r="1.5" fill="currentColor" stroke="none" />
-      <path strokeLinecap="round" d="M3 16l5-5 4 4 3-3 6 6" />
-    </svg>
+  <div className="relative flex h-40 w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 ring-1 ring-slate-700/60">
+    <div className="absolute inset-0 bg-[linear-gradient(rgba(34,211,238,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.06)_1px,transparent_1px)] bg-[size:20px_20px]" />
+    <HiPhoto className="relative h-10 w-10 text-slate-600" aria-hidden />
   </div>
 );
 
-const FeedReportCard = ({ report, showDistance }) => (
-  <article className="w-[min(280px,78vw)] shrink-0 snap-start overflow-hidden rounded-2xl border border-slate-700/60 bg-[#0c1220]/95 shadow-[0_8px_32px_rgba(0,0,0,0.35)]">
-    <div className="p-4 pb-3">
-      <div className="flex items-start gap-2">
-        {report.feedStatusTone === "warning" ? <WarningIcon /> : null}
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-bold text-white">
+const FeedReportCard = ({ report, showDistance }) => {
+  const accent = getReportTypeAccent(report.report_type);
+
+  return (
+    <article
+      className={[
+        "group w-[min(300px,82vw)] shrink-0 snap-start overflow-hidden rounded-2xl border bg-[#0a0f1a]/95 backdrop-blur-sm transition hover:-translate-y-0.5",
+        accent.border,
+        accent.glow,
+      ].join(" ")}
+    >
+      <div className="relative p-4 pb-3">
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <ReportTypeBadge reportType={report.report_type} />
+          <span className="text-[10px] text-slate-500">
+            {report.created_at
+              ? formatDistanceToNow(new Date(report.created_at), {
+                  addSuffix: true,
+                })
+              : ""}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <ReportTypeIcon
+            type={report.report_type}
+            className="h-5 w-5 shrink-0 text-white/90"
+          />
+          <h3 className="text-base font-bold leading-snug text-white">
             {report.feedTitle}
           </h3>
-          <p
-            className={`mt-0.5 text-[11px] font-semibold tracking-wide ${statusToneClass[report.feedStatusTone] ?? statusToneClass.info}`}
-          >
-            {showDistance && report.distanceM != null
-              ? `${formatDistanceLabel(report.distanceM)} • `
-              : ""}
-            {report.feedStatus}
-          </p>
         </div>
+        <p className={`mt-1 text-[11px] font-bold tracking-wide ${accent.status}`}>
+          {showDistance && report.distanceM != null
+            ? `${formatDistanceLabel(report.distanceM)} • `
+            : ""}
+          {report.feedStatus}
+        </p>
+        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-400">
+          {report.details}
+        </p>
       </div>
-    </div>
 
-    <div className="px-4">
-      {report.evidence_url ? (
-        <img
-          src={report.evidence_url}
-          alt=""
-          className="h-36 w-full rounded-xl object-cover ring-1 ring-slate-700/50"
-        />
-      ) : (
-        <ImagePlaceholder />
-      )}
-    </div>
+      <div className="relative px-4">
+        {report.evidence_url ? (
+          <div className="relative overflow-hidden rounded-xl ring-1 ring-slate-700/50">
+            <img
+              src={report.evidence_url}
+              alt=""
+              className="h-40 w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0a0f1a]/80 via-transparent to-transparent" />
+          </div>
+        ) : (
+          <ImagePlaceholder />
+        )}
+      </div>
 
-    <div className="flex items-center justify-between gap-2 px-4 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-        {report.feedFooter}
-      </p>
-      <p className="text-[10px] text-slate-600">
-        {report.created_at
-          ? formatDistanceToNow(new Date(report.created_at), { addSuffix: true })
-          : ""}
-      </p>
-    </div>
-  </article>
-);
+      <div className="flex items-center justify-between gap-2 border-t border-slate-800/80 px-4 py-3 mt-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          {report.feedFooter}
+        </p>
+        {report.hide_identity ? (
+          <span className="inline-flex items-center gap-1 rounded-md bg-slate-800 px-2 py-0.5 text-[9px] font-medium text-slate-400">
+            <HiEyeSlash className="h-3 w-3" aria-hidden />
+            Anonymous
+          </span>
+        ) : null}
+      </div>
+    </article>
+  );
+};
 
 const Feed = () => {
   const [reports, setReports] = useState([]);
@@ -164,15 +180,71 @@ const Feed = () => {
     return list;
   }, [reports, activeFilter, userLocation, radiusM]);
 
+  const feedStats = useMemo(() => {
+    const visible = preparedReports;
+    const emergency = visible.filter((r) => r.feedStatusTone === "danger").length;
+    return { count: visible.length, emergency };
+  }, [preparedReports]);
+
   const sectionTitle =
     activeFilter === "near" ? "REPORTS NEAR ME" : "COMMUNITY FEED";
   const sectionSubtitle =
     activeFilter === "near"
       ? "Real-time local intelligence"
-      : "Live updates from your area";
+      : "Live incident updates from the community";
 
   return (
-    <section className="mx-auto w-full max-w-5xl space-y-6">
+    <section className="mx-auto w-full max-w-5xl space-y-5 pb-4">
+      <div className="rounded-2xl border border-cyan-900/40 bg-gradient-to-r from-slate-900/90 to-[#0a1628]/90 p-4 shadow-[0_0_30px_rgba(34,211,238,0.08)]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <HiRss className="h-3.5 w-3.5 text-cyan-400" aria-hidden />
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-400" />
+              </span>
+              <HiRss className="h-3.5 w-3.5 text-cyan-400" aria-hidden />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-300/90">
+                Live Feed
+              </span>
+            </div>
+            <h1 className="mt-2 text-xl font-bold tracking-[0.08em] text-white">
+              {sectionTitle}
+            </h1>
+            <p className="mt-1 text-xs text-slate-400">{sectionSubtitle}</p>
+          </div>
+          <Link
+            to="/reports"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-cyan-400 px-4 py-2 text-xs font-bold text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.3)] transition hover:bg-cyan-300"
+          >
+            <HiPlus className="h-4 w-4" aria-hidden />
+            Report
+          </Link>
+        </div>
+
+        {!loading ? (
+          <div className="mt-4 flex gap-2">
+            <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5">
+              <span className="text-lg font-bold text-cyan-200">
+                {feedStats.count}
+              </span>
+              <span className="ml-1.5 text-[10px] uppercase text-slate-400">
+                Showing
+              </span>
+            </div>
+            <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5">
+              <span className="text-lg font-bold text-red-300">
+                {feedStats.emergency}
+              </span>
+              <span className="ml-1.5 text-[10px] uppercase text-slate-400">
+                Priority
+              </span>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {FILTERS.map((filter) => (
           <button
@@ -183,27 +255,21 @@ const Feed = () => {
               setLocationError("");
             }}
             className={[
-              "shrink-0 rounded-full px-5 py-2 text-sm font-semibold transition",
+              "inline-flex shrink-0 items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold transition",
               activeFilter === filter.id
                 ? "bg-cyan-400 text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.35)]"
                 : "border border-slate-700/80 bg-slate-900/60 text-slate-300 hover:border-slate-600 hover:text-white",
             ].join(" ")}
           >
+            <filter.Icon className="h-4 w-4" aria-hidden />
             {filter.label}
           </button>
         ))}
       </div>
 
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-bold tracking-[0.1em] text-white">
-            {sectionTitle}
-          </h1>
-          <p className="mt-1 text-xs text-slate-500">{sectionSubtitle}</p>
-        </div>
-
-        {activeFilter === "near" ? (
-          <div className="flex shrink-0 rounded-full border border-slate-700/80 bg-slate-900/80 p-0.5">
+      {activeFilter === "near" ? (
+        <div className="flex justify-end">
+          <div className="flex rounded-full border border-slate-700/80 bg-slate-900/80 p-0.5">
             {RADIUS_OPTIONS.map((opt) => (
               <button
                 key={opt.id}
@@ -220,8 +286,8 @@ const Feed = () => {
               </button>
             ))}
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="rounded-xl border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-300">
@@ -237,28 +303,34 @@ const Feed = () => {
 
       {loading ? (
         <div className="flex gap-4 overflow-hidden">
-          {[1, 2].map((i) => (
+          {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-64 w-[min(280px,78vw)] shrink-0 animate-pulse rounded-2xl bg-slate-800/50"
+              className="h-72 w-[min(300px,82vw)] shrink-0 animate-pulse rounded-2xl border border-slate-800 bg-slate-900/60"
             />
           ))}
         </div>
       ) : null}
 
       {!loading && preparedReports.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-700/80 bg-slate-900/40 px-6 py-12 text-center">
-          <p className="text-sm font-medium text-slate-300">No reports yet</p>
-          <p className="mt-1 text-xs text-slate-500">
+        <div className="rounded-2xl border border-dashed border-cyan-900/50 bg-slate-900/40 px-6 py-14 text-center">
+          <p className="text-sm font-semibold text-slate-200">No reports found</p>
+          <p className="mt-2 text-xs text-slate-500">
             {activeFilter === "near"
-              ? `No incidents within ${radiusM === 500 ? "500m" : "1km"} of you.`
-              : "Community reports will appear here when submitted."}
+              ? `No incidents within ${radiusM === 500 ? "500m" : "1km"} of your location.`
+              : "Be the first to submit an incident report."}
           </p>
+          <Link
+            to="/reports"
+            className="mt-4 inline-block rounded-xl border border-cyan-500/40 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+          >
+            Submit a report
+          </Link>
         </div>
       ) : null}
 
       {!loading && preparedReports.length > 0 ? (
-        <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-3 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {preparedReports.map((report) => (
             <FeedReportCard
               key={report.id}

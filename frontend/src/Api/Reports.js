@@ -41,7 +41,7 @@ const insertReport = async (payload) => {
     .from(REPORTS_TABLE)
     .insert([payload])
     .select(
-      "id, details, evidence_url, hide_identity, latitude, longitude, created_at",
+      "id, report_type, details, evidence_url, hide_identity, latitude, longitude, created_at",
     );
 
   if (error) {
@@ -52,6 +52,7 @@ const insertReport = async (payload) => {
 };
 
 export const submitCommunityReport = async ({
+  reportType,
   details,
   hideIdentity,
   latitude,
@@ -74,6 +75,7 @@ export const submitCommunityReport = async ({
   }
 
   const basePayload = {
+    report_type: reportType,
     details: details.trim(),
     hide_identity: hideIdentity,
     latitude,
@@ -104,6 +106,7 @@ export const fetchCommunityReports = async () => {
     .select(
       `
       id,
+      report_type,
       details,
       evidence_url,
       hide_identity,

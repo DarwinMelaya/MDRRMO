@@ -1,7 +1,13 @@
 import { format } from "date-fns";
+import { HiMapPin, HiOutlinePhoto, HiUserCircle } from "react-icons/hi2";
+import ReportTypeBadge from "../Reports/ReportTypeBadge";
+import { getReportTypeAccent, getReportTypeMeta } from "../../constants/reportTypes";
 
 const ReportDetailModal = ({ report, onClose }) => {
   if (!report) return null;
+
+  const typeMeta = getReportTypeMeta(report.report_type);
+  const accent = getReportTypeAccent(report.report_type);
 
   const reporterName =
     report.hide_identity || !report.profiles?.name
@@ -28,15 +34,16 @@ const ReportDetailModal = ({ report, onClose }) => {
       >
         <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-cyan-900/50 bg-slate-900/95 px-5 py-4 backdrop-blur">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200/80">
-              Community Report
-            </p>
+            <ReportTypeBadge reportType={report.report_type} />
             <h2
               id="report-detail-title"
-              className="mt-1 text-base font-semibold text-white"
+              className="mt-2 text-base font-semibold text-white"
             >
-              Report Details
+              {typeMeta.label}
             </h2>
+            <p className={`mt-0.5 text-[10px] font-bold uppercase tracking-wide ${accent.status}`}>
+              {typeMeta.status}
+            </p>
             <p className="mt-0.5 text-xs text-slate-500">{submittedAt}</p>
           </div>
           <button
@@ -59,7 +66,8 @@ const ReportDetailModal = ({ report, onClose }) => {
               />
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-700 bg-slate-800/40 px-4 py-8 text-center text-xs text-slate-500">
+            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700 bg-slate-800/40 px-4 py-8 text-center text-xs text-slate-500">
+              <HiOutlinePhoto className="h-8 w-8 text-slate-600" aria-hidden />
               No photo evidence attached
             </div>
           )}
@@ -75,7 +83,8 @@ const ReportDetailModal = ({ report, onClose }) => {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-slate-700/80 bg-slate-800/40 px-3 py-3">
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">
+              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500">
+                <HiUserCircle className="h-3.5 w-3.5" aria-hidden />
                 Reporter
               </p>
               <p className="mt-1 text-sm font-medium text-white">{reporterName}</p>
@@ -86,7 +95,8 @@ const ReportDetailModal = ({ report, onClose }) => {
               ) : null}
             </div>
             <div className="rounded-xl border border-slate-700/80 bg-slate-800/40 px-3 py-3">
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">
+              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500">
+                <HiMapPin className="h-3.5 w-3.5" aria-hidden />
                 Location
               </p>
               <p className="mt-1 font-mono text-xs text-cyan-200/90">
