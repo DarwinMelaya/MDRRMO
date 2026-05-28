@@ -24,6 +24,68 @@ import {
 } from "react-icons/hi2";
 
 const MIN_DETAILS_LENGTH = 5;
+const ALLOWED_RASTER_EXTENSIONS = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".bmp",
+  ".tif",
+  ".tiff",
+  ".webp",
+  ".heif",
+  ".heic",
+  ".raw",
+  ".dng",
+  ".cr2",
+  ".cr3",
+  ".nef",
+  ".arw",
+  ".orf",
+  ".rw2",
+];
+const ALLOWED_RASTER_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/bmp",
+  "image/tiff",
+  "image/webp",
+  "image/heif",
+  "image/heic",
+  "image/x-adobe-dng",
+  "image/x-canon-cr2",
+  "image/x-canon-cr3",
+  "image/x-nikon-nef",
+  "image/x-sony-arw",
+  "image/x-olympus-orf",
+  "image/x-panasonic-rw2",
+  "image/x-raw",
+]);
+const EVIDENCE_ACCEPT_VALUE = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/bmp",
+  "image/tiff",
+  "image/webp",
+  "image/heif",
+  "image/heic",
+  ...ALLOWED_RASTER_EXTENSIONS,
+].join(",");
+
+const getFileExtension = (fileName = "") => {
+  const dotIndex = fileName.lastIndexOf(".");
+  return dotIndex === -1 ? "" : fileName.slice(dotIndex).toLowerCase();
+};
+
+const isAllowedRasterImage = (file) => {
+  const extension = getFileExtension(file?.name);
+  const mimeType = (file?.type || "").toLowerCase();
+  if (extension && ALLOWED_RASTER_EXTENSIONS.includes(extension)) return true;
+  if (mimeType && ALLOWED_RASTER_MIME_TYPES.has(mimeType)) return true;
+  return mimeType.startsWith("image/");
+};
 
 const Reports = () => {
   const navigate = useNavigate();
@@ -36,6 +98,7 @@ const Reports = () => {
   const [evidencePreview, setEvidencePreview] = useState(null);
   const [compressingEvidence, setCompressingEvidence] = useState(false);
   const [evidenceSizeLabel, setEvidenceSizeLabel] = useState("");
+  const [evidenceNote, setEvidenceNote] = useState("");
 
   const [location, setLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState("idle");
@@ -107,8 +170,8 @@ const Reports = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      setError("Please select an image file.");
+    if (!isAllowedRasterImage(file)) {
+      setError("Please select a supported raster image file.");
       e.target.value = "";
       return;
     }
@@ -116,23 +179,32 @@ const Reports = () => {
     setCompressingEvidence(true);
     setError("");
     setEvidenceSizeLabel("");
+    setEvidenceNote("");
 
     try {
-      const { file: compressed, originalSize, compressedSize, skipped } =
-        await compressImageFile(file);
+      try {
+        const { file: compressed, originalSize, compressedSize, skipped } =
+          await compressImageFile(file);
 
-      setEvidenceFile(compressed);
-      if (skipped || originalSize === compressedSize) {
-        setEvidenceSizeLabel(formatFileSize(compressedSize));
-      } else {
-        setEvidenceSizeLabel(
-          `${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)}`,
-        );
+        setEvidenceFile(compressed);
+        if (skipped || originalSize === compressedSize) {
+          setEvidenceSizeLabel(formatFileSize(compressedSize));
+        } else {
+          setEvidenceSizeLabel(
+            `${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)}`,
+          );
+        }
+      } catch {
+        // Some formats (e.g. HEIC/RAW) are not browser-decodable for canvas compression.
+        setEvidenceFile(file);
+        setEvidenceSizeLabel(formatFileSize(file.size));
+        setEvidenceNote("Attached without compression (format not compressible).");
       }
-    } catch (compressErr) {
-      setError(compressErr.message || "Could not compress image.");
+    } catch (attachErr) {
+      setError(attachErr.message || "Could not attach image.");
       setEvidenceFile(null);
       setEvidenceSizeLabel("");
+      setEvidenceNote("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     } finally {
       setCompressingEvidence(false);
@@ -142,6 +214,7 @@ const Reports = () => {
   const clearEvidence = () => {
     setEvidenceFile(null);
     setEvidenceSizeLabel("");
+    setEvidenceNote("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -286,7 +359,7 @@ const Reports = () => {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept={EVIDENCE_ACCEPT_VALUE}
             className="hidden"
             onChange={onEvidenceChange}
             disabled={loading || compressingEvidence}
@@ -295,6 +368,11 @@ const Reports = () => {
           {compressingEvidence ? (
             <p className="mt-3 text-center text-xs text-cyan-300/90">
               Compressing image…
+            </p>
+          ) : null}
+          {evidenceNote ? (
+            <p className="mt-2 text-center text-[11px] text-amber-300/90">
+              {evidenceNote}
             </p>
           ) : null}
 

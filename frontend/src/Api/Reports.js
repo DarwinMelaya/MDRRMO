@@ -81,7 +81,8 @@ export const submitCommunityReport = async ({
     latitude,
     longitude,
     evidence_url: evidenceUrl,
-    reporter_id: hideIdentity ? null : reporterId ?? null,
+    // Keep ownership even when hidden, so users can manage their own reports.
+    reporter_id: reporterId ?? null,
   };
 
   let { data, error } = await insertReport(basePayload);
@@ -120,4 +121,39 @@ export const fetchCommunityReports = async () => {
     .order("created_at", { ascending: false });
 
   return { data: data ?? [], error };
+};
+
+const getEvidenceStoragePath = (evidenceUrl) => {
+  if (!evidenceUrl) return null;
+  const marker = `/storage/v1/object/public/${REPORT_EVIDENCE_BUCKET}/`;
+  const markerIndex = evidenceUrl.indexOf(marker);
+  if (markerIndex === -1) return null;
+  return evidenceUrl.slice(markerIndex + marker.length);
+};
+
+export const deleteCommunityReport = async ({
+  reportId,
+  reporterId,
+  evidenceUrl,
+}) => {
+  if (!reportId || !reporterId) {
+    return { error: new Error("Missing report or user information.") };
+  }
+
+  const { error } = await supabase
+    .from(REPORTS_TABLE)
+    .delete()
+    .eq("id", reportId)
+    .eq("reporter_id", reporterId);
+
+  if (error) {
+    return { error };
+  }
+
+  const storagePath = getEvidenceStoragePath(evidenceUrl);
+  if (storagePath) {
+    await supabase.storage.from(REPORT_EVIDENCE_BUCKET).remove([storagePath]);
+  }
+
+  return { error: null };
 };

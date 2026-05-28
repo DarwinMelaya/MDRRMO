@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
-import { fetchCommunityReports } from "../../Api/Reports";
+import { deleteCommunityReport, fetchCommunityReports } from "../../Api/Reports";
+import { getSession } from "../../Api/Profiles";
+import DeleteReportModal from "../../Components/Modals/Community/DeleteReportModal";
 import ReportTypeBadge from "../../Components/Reports/ReportTypeBadge";
 import { getReportTypeAccent } from "../../constants/reportTypes";
 import { haversineDistanceMeters, formatDistanceLabel } from "../../utils/geo";
@@ -19,12 +21,14 @@ import {
   HiPlus,
   HiRss,
   HiShieldCheck,
+  HiTrash,
   HiEyeSlash,
 } from "react-icons/hi2";
 
 const FILTERS = [
   { id: "recent", label: "Recent", Icon: HiClock },
   { id: "near", label: "Near Me", Icon: HiMapPin },
+  { id: "mine", label: "My Reports", Icon: HiShieldCheck },
   { id: "safety", label: "Safety", Icon: HiShieldCheck },
   { id: "utilities", label: "Utilities", Icon: HiBolt },
 ];
@@ -41,7 +45,7 @@ const ImagePlaceholder = () => (
   </div>
 );
 
-const FeedReportCard = ({ report, showDistance }) => {
+const FeedReportCard = ({ report, showDistance, canDelete, onDelete, deleting }) => {
   const accent = getReportTypeAccent(report.report_type);
 
   return (
@@ -102,12 +106,25 @@ const FeedReportCard = ({ report, showDistance }) => {
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
           {report.feedFooter}
         </p>
-        {report.hide_identity ? (
-          <span className="inline-flex items-center gap-1 rounded-md bg-slate-800 px-2 py-0.5 text-[9px] font-medium text-slate-400">
-            <HiEyeSlash className="h-3 w-3" aria-hidden />
-            Anonymous
-          </span>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {report.hide_identity ? (
+            <span className="inline-flex items-center gap-1 rounded-md bg-slate-800 px-2 py-0.5 text-[9px] font-medium text-slate-400">
+              <HiEyeSlash className="h-3 w-3" aria-hidden />
+              Anonymous
+            </span>
+          ) : null}
+          {canDelete ? (
+            <button
+              type="button"
+              onClick={() => onDelete(report)}
+              disabled={deleting}
+              className="inline-flex items-center gap-1 rounded-md border border-red-500/40 bg-red-950/30 px-2 py-0.5 text-[10px] font-semibold text-red-300 hover:bg-red-950/45 disabled:opacity-60"
+            >
+              <HiTrash className="h-3 w-3" aria-hidden />
+              {deleting ? "Deleting" : "Delete"}
+            </button>
+          ) : null}
+        </div>
       </div>
     </article>
   );
@@ -121,6 +138,10 @@ const Feed = () => {
   const [radiusM, setRadiusM] = useState(500);
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState("");
+  const [deletingReportId, setDeletingReportId] = useState(null);
+  const [reportPendingDelete, setReportPendingDelete] = useState(null);
+  const [session] = useState(() => getSession());
+  const sessionUserId = session?.id ?? null;
 
   const loadFeed = useCallback(async () => {
     setError("");
@@ -154,7 +175,10 @@ const Feed = () => {
   }, [activeFilter, radiusM]);
 
   const preparedReports = useMemo(() => {
-    let list = reports.filter((r) => matchesFeedFilter(r, activeFilter));
+    let list =
+      activeFilter === "mine"
+        ? reports.filter((r) => r.reporter_id && r.reporter_id === sessionUserId)
+        : reports.filter((r) => matchesFeedFilter(r, activeFilter));
 
     if (activeFilter === "near" && userLocation) {
       list = list
@@ -178,7 +202,7 @@ const Feed = () => {
     }
 
     return list;
-  }, [reports, activeFilter, userLocation, radiusM]);
+  }, [reports, activeFilter, userLocation, radiusM, sessionUserId]);
 
   const feedStats = useMemo(() => {
     const visible = preparedReports;
@@ -187,11 +211,46 @@ const Feed = () => {
   }, [preparedReports]);
 
   const sectionTitle =
-    activeFilter === "near" ? "REPORTS NEAR ME" : "COMMUNITY FEED";
+    activeFilter === "near"
+      ? "REPORTS NEAR ME"
+      : activeFilter === "mine"
+        ? "MY REPORTS"
+        : "COMMUNITY FEED";
   const sectionSubtitle =
     activeFilter === "near"
       ? "Real-time local intelligence"
+      : activeFilter === "mine"
+        ? "Incidents submitted by your account"
       : "Live incident updates from the community";
+
+  const requestDeleteReport = (report) => {
+    if (!sessionUserId || report.reporter_id !== sessionUserId) {
+      setError("You can only delete reports created by your account.");
+      return;
+    }
+    setReportPendingDelete(report);
+  };
+
+  const handleDeleteReport = async () => {
+    if (!reportPendingDelete) return;
+
+    setError("");
+    setDeletingReportId(reportPendingDelete.id);
+    const { error: deleteError } = await deleteCommunityReport({
+      reportId: reportPendingDelete.id,
+      reporterId: sessionUserId,
+      evidenceUrl: reportPendingDelete.evidence_url,
+    });
+    setDeletingReportId(null);
+
+    if (deleteError) {
+      setError(deleteError.message || "Could not delete report.");
+      return;
+    }
+
+    setReports((prev) => prev.filter((item) => item.id !== reportPendingDelete.id));
+    setReportPendingDelete(null);
+  };
 
   return (
     <section className="mx-auto w-full max-w-5xl space-y-5 pb-4">
@@ -336,10 +395,25 @@ const Feed = () => {
               key={report.id}
               report={report}
               showDistance={activeFilter === "near"}
+              canDelete={Boolean(sessionUserId && report.reporter_id === sessionUserId)}
+              onDelete={requestDeleteReport}
+              deleting={deletingReportId === report.id}
             />
           ))}
         </div>
       ) : null}
+      <DeleteReportModal
+        isOpen={Boolean(reportPendingDelete)}
+        report={reportPendingDelete}
+        isDeleting={Boolean(
+          reportPendingDelete && deletingReportId === reportPendingDelete.id,
+        )}
+        onCancel={() => {
+          if (deletingReportId) return;
+          setReportPendingDelete(null);
+        }}
+        onConfirm={handleDeleteReport}
+      />
     </section>
   );
 };
