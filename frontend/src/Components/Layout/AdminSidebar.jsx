@@ -1,4 +1,6 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { HiArrowLeftOnRectangle, HiShieldCheck } from "react-icons/hi2";
+import { clearSession } from "../../Api/Profiles";
 
 const linkBase =
   "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-indigo-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950";
@@ -9,11 +11,18 @@ const navItems = [
 ];
 
 const AdminSidebar = () => {
+  const navigate = useNavigate();
+
+  const onLogout = () => {
+    clearSession();
+    navigate("/", { replace: true });
+  };
+
   return (
     <aside className="sticky top-0 flex h-screen w-72 flex-col border-r border-blue-900/60 bg-gradient-to-b from-slate-950 via-blue-950 to-[#001e5a] text-slate-200 shadow-[0_0_35px_rgba(37,99,235,0.2)]">
       <div className="border-b border-blue-900/50 px-5 py-5">
         <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 text-sm font-bold text-white shadow-[0_0_18px_rgba(59,130,246,0.45)]">
-          AD
+          <HiShieldCheck className="h-5 w-5" aria-hidden />
         </div>
         <div className="mt-3 text-sm font-semibold tracking-wide text-white">
           Admin Console
@@ -51,6 +60,14 @@ const AdminSidebar = () => {
         <div className="rounded-xl border border-blue-900/60 bg-blue-950/60 px-3 py-3 text-xs text-blue-100/75 backdrop-blur-sm">
           Signed in as <span className="font-semibold text-white">Admin</span>
         </div>
+        <button
+          type="button"
+          onClick={onLogout}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2.5 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/20"
+        >
+          <HiArrowLeftOnRectangle className="h-5 w-5" aria-hidden />
+          Logout
+        </button>
       </div>
     </aside>
   );
